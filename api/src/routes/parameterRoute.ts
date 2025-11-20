@@ -19,10 +19,7 @@ export default function config(router: Router) {
         }
 
         const idOrName = request.params.id_or_name;
-        const isName = Number.isNaN(Number(idOrName));
-        const where = isName
-            ? { name: normalizeName(idOrName) }
-            : { id: Number(idOrName) };
+        const where = getWhereClause(idOrName);
 
         const parameter = await prisma.parameter.findUnique({
             where
@@ -63,12 +60,12 @@ export default function config(router: Router) {
         return Notification.success(parameter.id, 200);
     }))
 
-    router.put('/parameters/:id', handler(async (request) => {
+    router.put('/parameters/:id_or_name', handler(async (request) => {
         const errors: Array<string> = [];
         if (!isValid(request.body)) {
             errors.push('the body is not valid');
         }
-        if (!request.params.id) {
+        if (!request.params.id_or_name) {
             errors.push('the parameter is not found')
         }
 
@@ -76,14 +73,13 @@ export default function config(router: Router) {
             return Notification.fail(errors);
         }
 
-        const { name, type, value, id } = request.body;
+        const where = getWhereClause(request.params.id_or_name);
+
+        const { name, type, value } = request.body;
 
         await prisma.parameter.update({
-            where: {
-                id: Number(request.params.id)
-            },
+            where,
             data: {
-                id,
                 type,
                 value,
                 name: normalizeName(name),
@@ -117,4 +113,11 @@ function isValid(body: Record<string, unknown>) {
 
 function normalizeName(name: string) {
     return name.trim().toLowerCase();
+}
+
+function getWhereClause(idOrName: string) {
+    const isName = Number.isNaN(Number(idOrName));
+    return isName
+        ? { name: normalizeName(idOrName) }
+        : { id: Number(idOrName) };
 }
